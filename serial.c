@@ -3,6 +3,7 @@
 
 //char port_name[] = "/dev/ttySC2";
 char port_name[] = "/dev/ttyAMA0";
+//char port_name[] = "/dev/ttyUSB0";
 
 
 #include <stdio.h>
@@ -13,6 +14,7 @@ char port_name[] = "/dev/ttyAMA0";
 #include <errno.h> // Error integer and strerror() function
 #include <termios.h> // Contains POSIX terminal control definitions
 #include <unistd.h> // write(), read(), close()
+#include <time.h>
 
 int main() {
   // Open the serial port. Change device path as needed (currently set to an standard FTDI USB-UART cable type device)
@@ -62,10 +64,11 @@ int main() {
 
   // Allocate memory for read buffer, set size according to your needs
   unsigned char read_buf [512];
+  unsigned int total_bytes = 0;
+  int num_bytes = 0;
 
   // flush the buffer
   printf("flushing receive buffer...\n");
-  int num_bytes = 0;
   do
   {
     num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
@@ -75,10 +78,27 @@ int main() {
   // Write to serial port
   unsigned char msg[256];
   for(int i = 0; i < sizeof(msg); i++)
+  {
     msg[i] = i;
-  write(serial_port, msg, sizeof(msg));
+    write(serial_port, &msg[i], 1);
+    nanosleep((const struct timespec[]){{0, 5000000L}}, NULL);
+    num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
 
+    for(int i = 0; i < num_bytes; i++)
+    {
+      if(total_bytes % 0x10 == 0)
+      {
+        printf("\nTotal read 0x%04x:", total_bytes);
+      }
 
+      printf("[%02x]\r", (unsigned int)(read_buf[i]));
+      if(total_bytes != read_buf[i])
+        printf("\nbyte %02x incorrect, found %02x\n", total_bytes, (unsigned int)(read_buf[i]));
+      
+      total_bytes++;
+    }
+  }
+  
   // Normally you wouldn't do this memset() call, but since we will just receive
   // ASCII data for this example, we'll set everything to 0 so we can
   // call printf() easily.
@@ -87,7 +107,6 @@ int main() {
   // Read bytes. The behaviour of read() (e.g. does it block?,
   // how long does it block for?) depends on the configuration
   // settings above, specifically VMIN and VTIME
-  unsigned int total_bytes = 0;
   while( total_bytes < sizeof(msg) )
   {
     int num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
@@ -104,7 +123,9 @@ int main() {
     for(int i = 0; i < num_bytes; i++)
     {
       if(total_bytes % 0x10 == 0)
+      {
         printf("\nTotal read 0x%04x:", total_bytes);
+      }
 
       printf("[%02x]", (unsigned int)(read_buf[i]));
       if(total_bytes != read_buf[i])
