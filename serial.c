@@ -1,4 +1,10 @@
+// Code derived from: https://blog.mbedded.ninja/programming/operating-systems/linux/linux-serial-ports-using-c-cpp/
 // C library headers
+
+//char port_name[] = "/dev/ttySC2";
+char port_name[] = "/dev/ttyAMA0";
+
+
 #include <stdio.h>
 #include <string.h>
 
@@ -10,7 +16,7 @@
 
 int main() {
   // Open the serial port. Change device path as needed (currently set to an standard FTDI USB-UART cable type device)
-  int serial_port = open("/dev/ttyUSB0", O_RDWR);
+  int serial_port = open(port_name, O_RDWR);
 
   // Create new termios struc, we call it 'tty' for convention
   struct termios tty;
@@ -44,7 +50,7 @@ int main() {
   tty.c_cc[VTIME] = 10;    // Wait for up to 1s (10 deciseconds), returning as soon as any data is received.
   tty.c_cc[VMIN] = 0;
 
-  // Set in/out baud rate to be 9600
+  // Set in/out baud rate
   cfsetispeed(&tty, B115200);
   cfsetospeed(&tty, B115200);
 
@@ -54,14 +60,24 @@ int main() {
       return 1;
   }
 
+  // Allocate memory for read buffer, set size according to your needs
+  unsigned char read_buf [512];
+
+  // flush the buffer
+  printf("flushing receive buffer...\n");
+  int num_bytes = 0;
+  do
+  {
+    num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
+  } while( num_bytes > 0 );
+
+
   // Write to serial port
   unsigned char msg[256];
   for(int i = 0; i < sizeof(msg); i++)
     msg[i] = i;
   write(serial_port, msg, sizeof(msg));
 
-  // Allocate memory for read buffer, set size according to your needs
-  char read_buf [512];
 
   // Normally you wouldn't do this memset() call, but since we will just receive
   // ASCII data for this example, we'll set everything to 0 so we can
@@ -71,12 +87,11 @@ int main() {
   // Read bytes. The behaviour of read() (e.g. does it block?,
   // how long does it block for?) depends on the configuration
   // settings above, specifically VMIN and VTIME
-  int total_bytes = 0;
+  unsigned int total_bytes = 0;
   while( total_bytes < sizeof(msg) )
   {
     int num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
-    total_bytes += num_bytes;
-
+    
     // n is the number of bytes read. n may be 0 if no bytes were received, and can also be -1 to signal an error.
     if (num_bytes < 0) {
         printf("Error reading: %s", strerror(errno));
@@ -86,11 +101,20 @@ int main() {
     // Here we assume we received ASCII data, but you might be sending raw bytes (in that case, don't try and
     // print it to the screen like this!)
     //printf("Total %i, Read %i bytes. Received message: %s\n", total_bytes, num_bytes, read_buf);
-    printf("Total %i, Read %i bytes. Received message: ", total_bytes, num_bytes);
     for(int i = 0; i < num_bytes; i++)
-      printf("%c[%02x]", read_buf[i], (unsigned int)(read_buf[i] & 0xff));
-    printf("\n");
+    {
+      if(total_bytes % 0x10 == 0)
+        printf("\nTotal read 0x%04x:", total_bytes);
+
+      printf("[%02x]", (unsigned int)(read_buf[i]));
+      if(total_bytes != read_buf[i])
+        printf("\nbyte %02x incorrect, found %02x\n", total_bytes, (unsigned int)(read_buf[i]));
+      
+      total_bytes++;
+    }
   }
+  printf("\n");
+  printf("\nTotal bytes read %i.\n", total_bytes);
 
   close(serial_port);
   return 0; // success
