@@ -1,1 +1,5 @@
 a.out
+loopback
+*.o
+*.zip
+
