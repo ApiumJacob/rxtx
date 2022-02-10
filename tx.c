@@ -1,9 +1,9 @@
 // Code derived from: https://blog.mbedded.ninja/programming/operating-systems/linux/linux-serial-ports-using-c-cpp/
 // C library headers
 
-//char port_name[] = "/dev/ttySC2";
+char port_name[] = "/dev/ttySC2";
 //char port_name[] = "/dev/ttyAMA0";
-char port_name[] = "/dev/ttyUSB0";
+//char port_name[] = "/dev/ttyUSB0";
 
 #include "serial.h"
 
@@ -27,7 +27,7 @@ int main() {
     write(serial_port, &msg, sizeof(msg));
     printf("[%02x]", msg[0]);
 
-    nanosleep((const struct timespec[]){{0, 5000000L}}, NULL);
+    //nanosleep((const struct timespec[]){{0, 2000000L}}, NULL);
     total_bytes++;
   }
   
