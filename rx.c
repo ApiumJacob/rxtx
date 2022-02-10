@@ -37,7 +37,8 @@ while(1)
   // Read bytes. The behaviour of read() (e.g. does it block?,
   // how long does it block for?) depends on the configuration
   // settings above, specifically VMIN and VTIME
-  while( total_bytes < packet_size )
+  int expected_byte = 0;
+  while( total_bytes < packet_size && expected_byte != 0x100 )
   {
     int num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
     
@@ -52,18 +53,25 @@ while(1)
     //printf("Total %i, Read %i bytes. Received message: %s\n", total_bytes, num_bytes, read_buf);
     for(int i = 0; i < num_bytes; i++)
     {
-      while(( total_bytes != read_buf[i]) && total_bytes < packet_size)
-      {
-        if(total_bytes % 0x10 == 0)
-          printf("\nTotal read 0x%04x:", total_bytes);
-        printf("{%02x}", (unsigned int)(read_buf[i]));
-        total_bytes++;
-      }
+//      while(( total_bytes != read_buf[i]) && total_bytes < packet_size)
+//      {
+//        if(total_bytes % 0x10 == 0)
+//          printf("\nTotal read 0x%04x:", total_bytes);
+//        printf("{%02x}", (unsigned int)(read_buf[i]));
+//        total_bytes++;
+//      }
       if(total_bytes % 0x10 == 0)
         printf("\nTotal read 0x%04x:", total_bytes);
 
-      printf(" %02x ", (unsigned int)(read_buf[i]));
+      if( expected_byte != read_buf[i] )
+      {
+        printf("{%02x}", (unsigned int)(read_buf[i]));
+        //expected_byte = read_buf[i];
+      }
+      else
+        printf(" %02x ", (unsigned int)(read_buf[i]));
       
+      expected_byte++;
       total_bytes++;
     }
   }
